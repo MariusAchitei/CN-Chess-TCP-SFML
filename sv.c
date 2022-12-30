@@ -12,8 +12,11 @@
 #include <signal.h>
 #include <pthread.h>
 
+#include "utils.c"
+
 /* portul folosit */
 #define PORT 2908
+#define START_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\0"
 
 /* codul de eroare returnat de anumite apeluri */
 extern int errno;
@@ -29,41 +32,10 @@ typedef struct jucator
     char nume[50];
     int fds; // file descriptor
     int ready;
+    int culoare;
     pthread_t *thr;
 } jucator;
 jucator juc[12];
-
-char *conv_addr(struct sockaddr_in address)
-{
-    static char str[25];
-    char port[7];
-
-    strcpy(str, inet_ntoa(address.sin_addr));
-    bzero(port, 7);
-    sprintf(port, ":%d", ntohs(address.sin_port));
-    strcat(str, port);
-    return (str);
-}
-
-void *inreg_nume(void *arg)
-{
-    int index = *(int *)arg;
-    int bytes;
-
-    char nume[50];
-
-    if ((bytes = read(juc[index].fds, nume, 50)) == -1)
-        perror("Eroare la read() de la client.\n");
-
-    nume[bytes - 1] = '\0';
-    strcpy(juc[index].nume, nume);
-
-    juc[index].ready = 1;
-
-    printf("%s\n%d\n", juc[index].nume, juc[index].fds);
-
-    free(arg);
-}
 
 void *creeaza_joc(void *arg)
 {
@@ -77,6 +49,9 @@ void *creeaza_joc(void *arg)
     if (write(juc[p2].fds, &negru, sizeof(int)) == -1)
         perror("Eroare la scris catre client");
 
+    juc[p1].culoare = 1;
+    juc[p2].culoare = -1;
+
     // trimitem jucatorilor numele adversarilor
 
     if (write(juc[p1].fds, juc[p2].nume, strlen(juc[p2].nume)) == -1)
@@ -84,8 +59,15 @@ void *creeaza_joc(void *arg)
     if (write(juc[p2].fds, juc[p1].nume, strlen(juc[p1].nume)) == -1)
         perror("Eroare la scris catre client");
 
+    if (write(juc[p1].fds, START_POSITION, strlen(START_POSITION)) == -1)
+        perror("Eroare la scris catre client");
+    if (write(juc[p2].fds, START_POSITION, strlen(START_POSITION)) == -1)
+        perror("Eroare la scris catre client");
+
     int sahmat = 0;
     char verif[] = "sahmat";
+    int board;
+    init_board(START_POSITION);
 
     while (!sahmat)
     {
@@ -124,6 +106,38 @@ void *creeaza_joc(void *arg)
             break;
         }
     }
+}
+
+void *inreg_nume(void *arg)
+{
+    int index = *(int *)arg;
+    int bytes;
+
+    char nume[50];
+
+    if ((bytes = read(juc[index].fds, nume, 50)) == -1)
+        perror("Eroare la read() de la client.\n");
+
+    nume[bytes - 1] = '\0';
+    strcpy(juc[index].nume, nume);
+
+    juc[index].ready = 1;
+
+    printf("%s\n%d\n", juc[index].nume, juc[index].fds);
+
+    free(arg);
+}
+
+char *conv_addr(struct sockaddr_in address)
+{
+    static char str[25];
+    char port[7];
+
+    strcpy(str, inet_ntoa(address.sin_addr));
+    bzero(port, 7);
+    sprintf(port, ":%d", ntohs(address.sin_port));
+    strcat(str, port);
+    return (str);
 }
 
 int main()
