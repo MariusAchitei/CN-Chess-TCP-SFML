@@ -1,29 +1,19 @@
 #include <SFML/Graphics.hpp>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <string.h>
-#include <arpa/inet.h>
-
-#include "utils.c"
+#include "utils.cpp"
 
 #define IP "127.0.0.1"
 #define PORT 2908
 
 /* codul de eroare returnat de anumite apeluri */
-extern int errno;
+// extern int errno;
 
 /* portul de conectare la server*/
 int port;
 
 int main(int argc, char *argv[])
 {
+  int culoare;
   char *ip = IP;
   int sd;                    // descriptorul de socket
   struct sockaddr_in server; // structura folosita pentru conectare
@@ -97,53 +87,54 @@ int main(int argc, char *argv[])
 
   printf("Oponentul a fost gasit! -- %s\n", buf);
 
-  if ((bytes = read(sd, buf, 150)) < 0) // primim numele adversarului
+  if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
   {
     perror("Eroare la read() de la server.\n");
     return errno;
   }
 
-  init_board(buf);
+  print_board(buf);
 
   char *mutare;
 
   if (nr == 1)
   {
     printf("Veti juca cu piesele albe, aveti prima mutare\n");
-    printf("Introduceti mutarea:\n");
-    buf[0] = '\0';
-    fgets(buf, sizeof(buf), stdin);
-    if (write(sd, buf, strlen(buf)) <= 0)
-    {
-      perror("Eroare la write() spre server.\n");
-      return errno;
-    }
+    culoare = 1;
   }
   else
   {
     printf("Veti juca cu piesele negre, aveti a doua mutare\n");
+    culoare = -1;
   }
   /* afisam mesajul primit */
 
   for (int i = 0; i <= 10; i++)
   {
+    if (culoare > 0)
+      citeste_mutare(sd);
     buf[0] = '\0';
-    if ((bytes = read(sd, buf, 50)) < 0) // primim numele adversarului
+    if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
     {
       perror("Eroare la read() de la server.\n");
       return errno;
     }
     buf[bytes] = '\0';
+    print_board(buf);
 
     printf("\n%s\n", buf);
-    printf("Introduceti mutarea:\n");
+
+    if (culoare < 0)
+      citeste_mutare(sd);
+
     buf[0] = '\0';
-    fgets(buf, sizeof(buf), stdin);
-    if (write(sd, buf, strlen(buf)) <= 0)
+    if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
     {
-      perror("Eroare la write() spre server.\n");
+      perror("Eroare la read() de la server.\n");
       return errno;
     }
+    print_board(buf);
+    printf("\n%s\n", buf);
   }
 
   printf("Mesajul primit este: %d\n", nr);
