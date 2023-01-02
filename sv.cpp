@@ -4,7 +4,10 @@
 
 /* portul folosit */
 #define PORT 2908
-#define START_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\0"
+
+#define START_POSITION "rnbqkbn1/ppppp1pp/4p3/r7/5Q2/5R2/PPPPPPPP/RNB1K1NB w KQkq - 0 1\0"
+// #define START_POSITION "rnb1kbnr/ppp1qppp/2p2p2/8/8/2P2P2/PPP1QPPP/RNB1KBNR w KQkq - 0 1\0"
+// #define START_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\0"
 
 /* codul de eroare returnat de anumite apeluri */
 
@@ -24,6 +27,7 @@ void *creeaza_joc(void *arg)
     m.print_board();
     m.init(); // anunta jucatorii ca a inceput meciul, da info despre adversari, trimite formatia de start
     m.play();
+    m.final();
 
     return NULL;
 }

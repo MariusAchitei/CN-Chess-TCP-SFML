@@ -101,6 +101,7 @@ meci::meci(jucator *p1, jucator *p2, char *fenn)
                 board[m][n] = 0;
                 n++;
             }
+            n--;
             break;
         }
         }
@@ -111,7 +112,9 @@ meci::meci(jucator *p1, jucator *p2, char *fenn)
 
 void meci::init()
 {
-    int alb = 1, negru = 2;
+    int alb = 1, negru = -1;
+    p1->oponent = p2;
+    p2->oponent = p1;
 
     if (write(p1->fds, &alb, sizeof(int)) == -1)
         perror("Eroare la scris catre client");
@@ -128,23 +131,37 @@ void meci::init()
     if (write(p2->fds, p1->nume, 50) == -1)
         perror("Eroare la scris catre client");
 
-    if (write(p1->fds, START_POSITION, strlen(START_POSITION)) == -1)
-        perror("Eroare la scris catre client");
-    if (write(p2->fds, START_POSITION, strlen(START_POSITION)) == -1)
-        perror("Eroare la scris catre client");
+    // if (write(p1->fds, START_POSITION, strlen(START_POSITION)) == -1)
+    //     perror("Eroare la scris catre client");
+    // if (write(p2->fds, START_POSITION, strlen(START_POSITION)) == -1)
+    //     perror("Eroare la scris catre client");
+
+    send_board();
 }
 
 void meci::play()
 {
 
-    while (!sahmat)
+    while (!gata)
     {
         inreg_mutare(p1);
+        if (sahmat(p2))
+        {
+            gata = 1;
+            castigator = p1;
+            break;
+        }
         to_move = to_move * -1;
         send_board();
         print_board();
 
         inreg_mutare(p2);
+        if (sahmat(p1))
+        {
+            gata = -1;
+            castigator = p2;
+            break;
+        }
         send_board();
         print_board();
         to_move = to_move * -1;
@@ -154,8 +171,9 @@ void meci::play()
 void meci::inreg_mutare(jucator *p)
 {
     char mutare[5];
-    int bytes, ok = 0;
+    int bytes, ok = 0, aux, sah = -1;
 
+    // loop pentru a inregistra mutari, pana apare cea buna
     do
     {
         if ((bytes = read(p->fds, mutare, 50)) == -1)
@@ -163,18 +181,36 @@ void meci::inreg_mutare(jucator *p)
         mutare[4] = '\0';
         printf("am primit mutarea [%s] de la [%d]\n", mutare, p->culoare);
 
-        if (!(ok = verifica(p, mutare)))
+        // transform mutarea din sir de caractere in coordonate
+        int sr = mutare[0] - '0', sc = mutare[1] - '0', fr = mutare[2] - '0', fc = mutare[3] - '0';
+
+        if (!verifica(p, sr, sc, fr, fc) || abs(board[fr][fc]) == 6) // tinta sa nu fie rege sau mutare legala
         {
             printf("mutare invalida\n");
             if (write(p->fds, &ok, sizeof(int)) == -1)
                 perror("Eroare la scris catre client");
+            continue;
         }
-        else
+
+        aux = board[fr][fc];
+        board[fr][fc] = board[sr][sc];
+        board[sr][sc] = 0;
+        if (is_sah(p))
         {
-            printf("mutare efectuata\n");
-            if (write(p->fds, &ok, sizeof(int)) == -1)
+            board[sr][sc] = board[fr][fc];
+            board[fr][fc] = aux;
+            printf("mutare invalida, Intrati in SAH de la adversar\n");
+            if (write(p->fds, &sah, sizeof(int)) == -1)
                 perror("Eroare la scris catre client");
+            continue;
         }
+
+        ok = 1;
+        printf("mutare efectuata\n");
+        if (write(p->fds, &ok, sizeof(int)) == -1)
+            perror("Eroare la scris catre client");
+        break;
+        // am efectuat mutarea verificam sahmat
     } while (!ok);
 }
 
@@ -218,6 +254,11 @@ void meci::send_board()
         fenn[k] = 'b';
     fenn[k + 1] = '\0';
 
+    if (write(p2->fds, &gata, sizeof(int)) == -1)
+        perror("Eroare la scris catre client");
+    if (write(p1->fds, &gata, sizeof(int)) == -1)
+        perror("Eroare la scris catre client");
+
     if (write(p2->fds, fenn, strlen(fenn)) == -1)
         perror("Eroare la scris catre client");
     if (write(p1->fds, fenn, strlen(fenn)) == -1)
@@ -226,11 +267,8 @@ void meci::send_board()
     printf("Stare: [%s]\n", fenn);
 }
 
-int meci::verifica(jucator *p, char *mutare)
+int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
 {
-    int fail = 0;
-    int sr = mutare[0] - '0', sc = mutare[1] - '0', fr = mutare[2] - '0', fc = mutare[3] - '0';
-
     // daca piesa si culoarea nu au acelasi semn mutarea este invalida
 
     if ((board[sr][sc] * p->culoare) <= 0)
@@ -247,6 +285,10 @@ int meci::verifica(jucator *p, char *mutare)
     if (sr == fr && sc == fc)
         return 0;
 
+    // if (abs(board[fr][fc]) == 6)
+    //     return 0;
+
+    // verificam daca mutarea este specifica piesei
     switch (abs(board[sr][sc]))
     {
     case 1:
@@ -278,9 +320,118 @@ int meci::verifica(jucator *p, char *mutare)
         break;
     }
 
-    board[fr][fc] = board[sr][sc];
-    board[sr][sc] = 0;
     return 1;
+}
+
+int meci::is_sah(jucator *p)
+{
+    int x_rege, y_rege;
+    get_rege(p->culoare, &x_rege, &y_rege);
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+        {
+            if (board[i][j] * p->culoare >= 0)
+                continue;
+            if (verifica(p->oponent, i, j, x_rege, y_rege))
+            {
+                sah = i * 10 + j; // in variabila sah punem locatia atacului
+                return 1;
+            }
+        }
+    return 0;
+}
+
+int meci::sahmat(jucator *p)
+{
+    if (!is_sah(p))
+        return 0;
+
+    int x_atac = sah / 10, y_atac = sah % 10;
+    int x_rege, y_rege;
+    get_rege(p->culoare, &x_rege, &y_rege);
+
+    // verificam daca piesa care ataca poate fi capturata
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+        {
+            // daca piesa este de aceeasi culoare sau este 0
+            if (board[i][j] * p->culoare <= 0)
+                continue;
+
+            // verificam daca piesa care ataca poate fi capturata
+            if (verifica(p, i, j, x_atac, y_atac))
+            {
+                int aux = board[x_atac][y_atac];
+                board[x_atac][y_atac] = board[i][j];
+                board[i][j] = 0;
+                if (!is_sah(p))
+                {
+                    board[i][j] = board[x_atac][y_atac];
+                    board[x_atac][y_atac] = aux;
+                    return 0;
+                }
+                board[i][j] = board[x_atac][y_atac];
+                board[x_atac][y_atac] = aux;
+            }
+            // verificare de mutat regele
+            if (verifica(p, x_rege, y_rege, i, j))
+            {
+                int aux = board[i][j];
+                board[i][j] = board[x_rege][y_rege];
+                board[x_rege][y_rege] = 0;
+
+                if (!is_sah(p))
+                {
+                    board[x_rege][y_rege] = board[i][j];
+                    board[i][j] = aux;
+                    return 0;
+                }
+                board[x_rege][y_rege] = board[i][j];
+                board[i][j] = aux;
+            }
+        }
+
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+            // verificare de blocare cu alta piesa
+            if (verifica(p->oponent, x_atac, y_atac, i, j))
+            {
+                for (int m = 0; i < 8; i++)
+                    for (int n = 0; j < 8; j++)
+                    {
+                        if (verifica(p, m, n, i, j))
+                        {
+                            int aux = board[i][j];
+                            board[i][j] = board[m][n];
+                            board[m][n] = 0;
+                            if (!verifica(p->oponent, x_atac, y_atac, x_rege, y_rege))
+                            {
+                                if (!is_sah(p))
+                                {
+                                    board[m][n] = board[i][j];
+                                    board[i][j] = aux;
+                                    return 0;
+                                }
+                                board[m][n] = board[i][j];
+                                board[i][j] = aux;
+                            }
+                        }
+                    }
+            }
+    return 1;
+}
+
+void meci::get_rege(int culoare, int *x, int *y)
+{
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+            if (board[i][j] * culoare == 6) // gasim coordonatele regelui
+            {
+                *x = i;
+                *y = j;
+                return;
+                // break;
+            }
 }
 
 void meci::print_board()
@@ -295,4 +446,9 @@ void meci::print_board()
     }
 }
 
+void meci::final()
+{
+    send_board();
+    print_board();
+}
 // meci::~meci()

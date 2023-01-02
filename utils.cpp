@@ -22,6 +22,7 @@ extern int errno;
 struct jucator
 {
     char nume[50];
+    jucator *oponent;
     int fds; // file descriptor
     int ready;
     int culoare;
@@ -44,15 +45,18 @@ void citeste_mutare(int sd)
         }
         if ((bytes = read(sd, &ok, sizeof(int))) == -1)
             perror("Eroare la citit() de la server.\n");
-        if (!ok)
+        if (ok < 1)
         {
-            printf("Mutare inaccesibila\n");
+            if (ok == -1)
+                printf("Sunteti in SAH, alegeti alta mutare\n");
+            else
+                printf("Mutare inaccesibila\n");
         }
         else
         {
             printf("mutare efectuata\n");
         }
-    } while (!ok);
+    } while (ok < 1);
 }
 
 char int_to_fenn(int piesa)

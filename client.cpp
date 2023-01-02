@@ -11,9 +11,64 @@
 /* portul de conectare la server*/
 int port;
 
+void trimite_nume(int sd)
+{
+  char buf[50];
+  printf("Introduceti un nume: ");
+  fgets(buf, sizeof(buf), stdin);
+
+  /* trimiterea mesajului la server */
+  if (write(sd, buf, strlen(buf)) <= 0)
+  {
+    perror("Eroare la write() spre server.\n");
+    // return errno;
+  }
+  printf("Am trimis %s\n", buf);
+  printf("--\nSe cauta oponent..\n--\n");
+}
+
+void init_meci(int sd, int *culoare)
+{
+  int nr, bytes;
+  char buf[150];
+  if ((read(sd, &nr, sizeof(int))) < 0) // primim mesajul ca incepe jocul
+  {
+    perror("Eroare la read() de la server.\n");
+    // return errno;
+  }
+
+  *culoare = nr; // pastram culoarea in referinta
+
+  if ((bytes = read(sd, buf, 50)) < 0) // primim numele adversarului
+  {
+    perror("Eroare la read() de la server.\n");
+    // return errno;
+  }
+  buf[bytes] = '\0';
+
+  printf("Oponentul a fost gasit! -- %s\n", buf);
+
+  if ((bytes = read(sd, &nr, sizeof(int))) < 0) // primim mesajul gata
+  {
+    perror("Eroare la read() de la server.\n");
+    // return errno;
+  }
+
+  if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
+  {
+    perror("Eroare la read() de la server.\n");
+    // return errno;
+  }
+
+  print_board(buf); // afisam tabla initiala
+}
+
+void primeste_mutare()
+{
+}
+
 int main(int argc, char *argv[])
 {
-  int culoare;
   char *ip = IP;
   int sd;                    // descriptorul de socket
   struct sockaddr_in server; // structura folosita pentru conectare
@@ -55,78 +110,71 @@ int main(int argc, char *argv[])
     return errno;
   }
   printf("--\nConectarea a reusit\n--\n");
-
-  /* citirea mesajului */
-  printf("Introduceti un nume: ");
   fflush(stdout);
-  fgets(buf, sizeof(buf), stdin);
+  /* citirea mesajului */
 
-  /* trimiterea mesajului la server */
-  if (write(sd, buf, strlen(buf)) <= 0)
-  {
-    perror("Eroare la write() spre server.\n");
-    return errno;
-  }
-  printf("Am trimis %s\n", buf);
-  printf("--\nSe cauta oponent..\n--\n");
+  trimite_nume(sd);
 
   /* citirea raspunsului dat de server
-     (apel blocant pina cind serverul raspunde) */
+     (apel blocant pana cand serverul raspunde) */
 
-  if ((read(sd, &nr, sizeof(int))) < 0) // primim mesajul ca incepe jocul
-  {
-    perror("Eroare la read() de la server.\n");
-    return errno;
-  }
-  if ((bytes = read(sd, buf, 50)) < 0) // primim numele adversarului
-  {
-    perror("Eroare la read() de la server.\n");
-    return errno;
-  }
-  buf[bytes] = '\0';
+  // citim semnalul de pornire, citim numele adversarului, afisez tabela
+  int culoare, gata = 0;
 
-  printf("Oponentul a fost gasit! -- %s\n", buf);
+  init_meci(sd, &culoare);
 
-  if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
-  {
-    perror("Eroare la read() de la server.\n");
-    return errno;
-  }
-
-  print_board(buf);
-
-  char *mutare;
-
-  if (nr == 1)
-  {
+  if (culoare == 1)
     printf("Veti juca cu piesele albe, aveti prima mutare\n");
-    culoare = 1;
-  }
   else
-  {
     printf("Veti juca cu piesele negre, aveti a doua mutare\n");
-    culoare = -1;
-  }
   /* afisam mesajul primit */
 
-  for (int i = 0; i <= 10; i++)
+  while (!gata)
   {
     if (culoare > 0)
       citeste_mutare(sd);
+
+    // primeste_mutare(sd, buf);
+    if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
+    {
+      perror("Eroare la read() de la server.\n");
+      return errno;
+    }
     buf[0] = '\0';
     if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
     {
       perror("Eroare la read() de la server.\n");
       return errno;
     }
+
     buf[bytes] = '\0';
     print_board(buf);
-
     printf("\n%s\n", buf);
+
+    if (gata != 0)
+    {
+      printf("----------------\nJOCUL S A INCHEIAT\n");
+      if (gata == culoare)
+      {
+        printf("FELICITARI ATI CASTIGAT\n");
+      }
+      else
+      {
+        printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
+      }
+      printf("----------------\n");
+      break;
+    }
 
     if (culoare < 0)
       citeste_mutare(sd);
 
+    if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
+    {
+      perror("Eroare la read() de la server.\n");
+      return errno;
+    }
+
     buf[0] = '\0';
     if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
     {
@@ -135,6 +183,21 @@ int main(int argc, char *argv[])
     }
     print_board(buf);
     printf("\n%s\n", buf);
+
+    if (gata != 0)
+    {
+      printf("----------------\nJOCUL S A INCHEIAT\n");
+      if (gata == culoare)
+      {
+        printf("FELICITARI ATI CASTIGAT\n");
+      }
+      else
+      {
+        printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
+      }
+      printf("----------------\n");
+      break;
+    }
   }
 
   printf("Mesajul primit este: %d\n", nr);
