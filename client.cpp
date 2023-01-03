@@ -1,9 +1,12 @@
 #include <SFML/Graphics.hpp>
 
-#include "utils.cpp"
+// #include "utils.cpp"
+#include "clientSFML.cpp"
 
 #define IP "127.0.0.1"
 #define PORT 2908
+
+int board[8][8];
 
 /* codul de eroare returnat de anumite apeluri */
 // extern int errno;
@@ -47,24 +50,6 @@ void init_meci(int sd, int *culoare)
   buf[bytes] = '\0';
 
   printf("Oponentul a fost gasit! -- %s\n", buf);
-
-  if ((bytes = read(sd, &nr, sizeof(int))) < 0) // primim mesajul gata
-  {
-    perror("Eroare la read() de la server.\n");
-    // return errno;
-  }
-
-  if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
-  {
-    perror("Eroare la read() de la server.\n");
-    // return errno;
-  }
-
-  print_board(buf); // afisam tabla initiala
-}
-
-void primeste_mutare()
-{
 }
 
 int main(int argc, char *argv[])
@@ -122,83 +107,86 @@ int main(int argc, char *argv[])
   int culoare, gata = 0;
 
   init_meci(sd, &culoare);
-
   if (culoare == 1)
     printf("Veti juca cu piesele albe, aveti prima mutare\n");
   else
     printf("Veti juca cu piesele negre, aveti a doua mutare\n");
+
+  clientSFML client(sd, culoare);
+  client.play();
+
   /* afisam mesajul primit */
 
-  while (!gata)
-  {
-    if (culoare > 0)
-      citeste_mutare(sd);
+  // while (!gata)
+  // {
+  //   if (culoare > 0)
+  //     citeste_mutare(sd);
 
-    // primeste_mutare(sd, buf);
-    if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
-    {
-      perror("Eroare la read() de la server.\n");
-      return errno;
-    }
-    buf[0] = '\0';
-    if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
-    {
-      perror("Eroare la read() de la server.\n");
-      return errno;
-    }
+  //   // primeste_mutare(sd, buf);
+  //   if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
+  //   {
+  //     perror("Eroare la read() de la server.\n");
+  //     return errno;
+  //   }
+  //   buf[0] = '\0';
+  //   if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
+  //   {
+  //     perror("Eroare la read() de la server.\n");
+  //     return errno;
+  //   }
 
-    buf[bytes] = '\0';
-    print_board(buf);
-    printf("\n%s\n", buf);
+  //   buf[bytes] = '\0';
+  //   print_board(buf);
+  //   printf("\n%s\n", buf);
 
-    if (gata != 0)
-    {
-      printf("----------------\nJOCUL S A INCHEIAT\n");
-      if (gata == culoare)
-      {
-        printf("FELICITARI ATI CASTIGAT\n");
-      }
-      else
-      {
-        printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
-      }
-      printf("----------------\n");
-      break;
-    }
+  //   if (gata != 0)
+  //   {
+  //     printf("----------------\nJOCUL S A INCHEIAT\n");
+  //     if (gata == culoare)
+  //     {
+  //       printf("FELICITARI ATI CASTIGAT\n");
+  //     }
+  //     else
+  //     {
+  //       printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
+  //     }
+  //     printf("----------------\n");
+  //     break;
+  //   }
 
-    if (culoare < 0)
-      citeste_mutare(sd);
+  //   if (culoare < 0)
+  //     citeste_mutare(sd);
 
-    if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
-    {
-      perror("Eroare la read() de la server.\n");
-      return errno;
-    }
+  //   if ((bytes = read(sd, &gata, sizeof(int))) < 0) // vedem daca mai continua jocul
+  //   {
+  //     perror("Eroare la read() de la server.\n");
+  //     return errno;
+  //   }
 
-    buf[0] = '\0';
-    if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
-    {
-      perror("Eroare la read() de la server.\n");
-      return errno;
-    }
-    print_board(buf);
-    printf("\n%s\n", buf);
+  //   buf[0] = '\0';
+  //   if ((bytes = read(sd, buf, 150)) < 0) // primim tabla de joc
+  //   {
+  //     perror("Eroare la read() de la server.\n");
+  //     return errno;
+  //   }
+  //   print_board(buf);
+  //   printf("\n%s\n", buf);
 
-    if (gata != 0)
-    {
-      printf("----------------\nJOCUL S A INCHEIAT\n");
-      if (gata == culoare)
-      {
-        printf("FELICITARI ATI CASTIGAT\n");
-      }
-      else
-      {
-        printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
-      }
-      printf("----------------\n");
-      break;
-    }
-  }
+  //   if (gata != 0)
+  //   {
+  //     printf("----------------\nJOCUL S A INCHEIAT\n");
+  //     if (gata == culoare)
+  //     {
+  //       printf("FELICITARI ATI CASTIGAT\n");
+  //     }
+  //     else
+  //     {
+  //       printf("DIN PACATE ATI PIERDUT, mult noroc data viitoare\n");
+  //     }
+  //     printf("----------------\n");
+  //     break;
+  //   }
+  // }
 
   printf("Mesajul primit este: %d\n", nr);
 

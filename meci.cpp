@@ -396,8 +396,8 @@ int meci::sahmat(jucator *p)
             // verificare de blocare cu alta piesa
             if (verifica(p->oponent, x_atac, y_atac, i, j))
             {
-                for (int m = 0; i < 8; i++)
-                    for (int n = 0; j < 8; j++)
+                for (int m = 0; m < 8; m++)
+                    for (int n = 0; n < 8; n++)
                     {
                         if (verifica(p, m, n, i, j))
                         {
@@ -436,14 +436,7 @@ void meci::get_rege(int culoare, int *x, int *y)
 
 void meci::print_board()
 {
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            printf("%d, ", board[i][j]);
-        }
-        printf("\n");
-    }
+    print_matrix(board);
 }
 
 void meci::final()

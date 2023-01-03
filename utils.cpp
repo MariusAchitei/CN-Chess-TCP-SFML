@@ -29,36 +29,6 @@ struct jucator
     pthread_t *thr;
 };
 
-void citeste_mutare(int sd)
-{
-    char buf[10];
-    int ok = 0, bytes;
-    do
-    {
-        printf("Introduceti mutarea:\n");
-        fgets(buf, sizeof(buf), stdin);
-        buf[4] = '\0';
-        if (write(sd, buf, strlen(buf)) <= 0)
-        {
-            perror("Eroare la write() spre server.\n");
-            // return errno;
-        }
-        if ((bytes = read(sd, &ok, sizeof(int))) == -1)
-            perror("Eroare la citit() de la server.\n");
-        if (ok < 1)
-        {
-            if (ok == -1)
-                printf("Sunteti in SAH, alegeti alta mutare\n");
-            else
-                printf("Mutare inaccesibila\n");
-        }
-        else
-        {
-            printf("mutare efectuata\n");
-        }
-    } while (ok < 1);
-}
-
 char int_to_fenn(int piesa)
 {
     switch (piesa)
@@ -204,6 +174,14 @@ void print_board(char *fenn)
         i++;
         n++;
     }
+
+    print_matrix(board);
+}
+
+void print_matrix(int board[8][8])
+{
+    int i, j;
+
     std::cout << std::endl;
     for (i = -1; i < 9; i++)
     {
