@@ -23,6 +23,8 @@ struct jucator
 {
     char nume[50];
     jucator *oponent;
+    int rocada_mica;
+    int rocada_mare;
     int fds; // file descriptor
     int ready;
     int culoare;

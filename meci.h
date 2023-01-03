@@ -10,6 +10,9 @@ private:
     jucator *p1;
     jucator *p2;
 
+    // rocadaP1 = 1;
+    // rocadaP2 = 1;
+
     int gata = 0;
     int sah = 0;
     int to_move = 1;

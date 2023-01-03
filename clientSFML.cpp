@@ -364,10 +364,11 @@ int clientSFML::citeste_mutare()
                 {
                     int y = event.mouseButton.y / SQUARE_SIZE;
                     int x = event.mouseButton.x / SQUARE_SIZE;
+                    printf("%d  %d\n", x, y);
                     std::cout
                         << "the left button was pressed" << std::endl;
-                    std::cout << "mouse x: " << event.mouseButton.x << std::endl;
-                    std::cout << "mouse y: " << event.mouseButton.y << std::endl;
+                    // std::cout << "mouse x: " << event.mouseButton.x << std::endl;
+                    // std::cout << "mouse y: " << event.mouseButton.y << std::endl;
                     if (!move)
                     {
                         // if (a[event.mouseButton.y / SQUARE_SIZE][event.mouseButton.x / SQUARE_SIZE] == 0)
@@ -382,11 +383,7 @@ int clientSFML::citeste_mutare()
                     }
                     else
                     {
-                        if (move == y * 10 + x)
-                        {
-                            move = 0;
-                            continue;
-                        }
+
                         move *= 100;
                         move += y * 10 + x;
                         printf("%d  %d\n", x, y);
@@ -394,9 +391,9 @@ int clientSFML::citeste_mutare()
 
                         int sr = move / 1000, sc = move / 100 % 10, fr = move / 10 % 10, fc = move % 10;
 
-                        piese[fr][fc].setTexture(*(piese[sr][sc].getTexture()));
+                        // piese[fr][fc].setTexture(*(piese[sr][sc].getTexture()));
 
-                        piese[sr][sc].setTexture(blank);
+                        // piese[sr][sc].setTexture(blank);
 
                         return move;
                         move = 0;

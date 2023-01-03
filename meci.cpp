@@ -18,6 +18,12 @@ meci::meci(jucator *p1, jucator *p2, char *fenn)
 {
     this->p1 = p1;
     this->p2 = p2;
+    p1->rocada_mare = 1;
+    p2->rocada_mare = 1;
+
+    p1->rocada_mica = 1;
+    p2->rocada_mica = 1;
+
     // init_board(fenn);
     int i = 0;
     int m = 0, n = 0;
@@ -172,6 +178,7 @@ void meci::inreg_mutare(jucator *p)
 {
     char mutare[5];
     int bytes, ok = 0, aux, sah = -1;
+    int verif = 0; // voi folosi asta pentru rocada
 
     // loop pentru a inregistra mutari, pana apare cea buna
     do
@@ -184,12 +191,22 @@ void meci::inreg_mutare(jucator *p)
         // transform mutarea din sir de caractere in coordonate
         int sr = mutare[0] - '0', sc = mutare[1] - '0', fr = mutare[2] - '0', fc = mutare[3] - '0';
 
-        if (!verifica(p, sr, sc, fr, fc) || abs(board[fr][fc]) == 6) // tinta sa nu fie rege sau mutare legala
+        verif = verifica(p, sr, sc, fr, fc);
+        if (!verif || abs(board[fr][fc]) == 6) // tinta sa nu fie rege sau mutare legala
         {
             printf("mutare invalida\n");
             if (write(p->fds, &ok, sizeof(int)) == -1)
                 perror("Eroare la scris catre client");
             continue;
+        }
+        // rocada returneaza 2
+        if (verif == 2)
+        {
+            ok = 1;
+            printf("mutare efectuata\n");
+            if (write(p->fds, &ok, sizeof(int)) == -1)
+                perror("Eroare la scris catre client");
+            break;
         }
 
         aux = board[fr][fc];
@@ -203,6 +220,37 @@ void meci::inreg_mutare(jucator *p)
             if (write(p->fds, &sah, sizeof(int)) == -1)
                 perror("Eroare la scris catre client");
             continue;
+        }
+
+        // verific daca un pion a ajuns la capat
+        if (abs(board[fr][fc]) == 1 && (fr == 0 || fr == 7))
+        {
+            // dau direct regina
+            if (fr == 0)
+                board[fr][fc] = 5;
+            else
+                board[fr][fc] = -5;
+        }
+
+        // daca a fost mutat regele nu se mai paote face rocada
+        if (abs(board[fr][fc]) == 6)
+        {
+            p->rocada_mare = 0;
+            p->rocada_mica = 0;
+        }
+        if (p->culoare == -1 && board[fr][fc] == -4)
+        {
+            if (sr == 0 && sc == 0)
+                p->rocada_mare = 0;
+            else if (sr == 0 && sc == 7)
+                p->rocada_mica = 0;
+        }
+        if (p->culoare == 1 && board[fr][fc] == 4)
+        {
+            if (sr == 7 && sc == 0)
+                p->rocada_mare = 0;
+            else if (sr == 7 && sc == 7)
+                p->rocada_mica = 0;
         }
 
         ok = 1;
@@ -269,8 +317,110 @@ void meci::send_board()
 
 int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
 {
-    // daca piesa si culoarea nu au acelasi semn mutarea este invalida
+    // verific daca facem rocada
+    if (abs(board[sr][sc] + board[fr][fc]) == 10)
+    {
+        if (is_sah(p))
+            return 0;
+        if (p->culoare == -1)
+        {
+            if (fr == 0 && fc == 0 && p->rocada_mare)
+            {
+                if (tura(fr, fc, sr, sc))
+                {
+                    board[sr][sc - 2] = -4;
+                    board[sr][sc - 1] = -6;
+                    board[sr][sc] = 0;
+                    board[fr][fc] = 0;
+                    if (is_sah(p))
+                    {
+                        board[sr][sc] = -6;
+                        board[fr][fc] = -4;
+                        board[sr][sc - 2] = 0;
+                        board[sr][sc - 1] = 0;
+                        return 0;
+                    }
+                    p->rocada_mare = 0;
+                    p->rocada_mica = 0;
+                    return 2;
+                }
+                else
+                    return 0;
+            }
+            if (fr == 0 && fc == 7 && p->rocada_mica)
+                if (tura(fr, fc, sr, sc))
+                {
+                    board[sr][sc + 2] = -4;
+                    board[sr][sc + 1] = -6;
+                    board[sr][sc] = 0;
+                    board[fr][fc] = 0;
+                    if (is_sah(p))
+                    {
+                        board[sr][sc] = -6;
+                        board[fr][fc] = -4;
+                        board[sr][sc + 2] = 0;
+                        board[sr][sc + 1] = 0;
+                        return 0;
+                    }
+                    p->rocada_mare = 0;
+                    p->rocada_mica = 0;
+                    return 2;
+                }
+                else
+                    return 0;
+        }
+        if (p->culoare == 1)
+        {
+            if (fr == 7 && fc == 0 && p->rocada_mare)
+            {
+                if (tura(fr, fc, sr, sc))
+                {
+                    board[sr][sc - 2] = 4;
+                    board[sr][sc - 1] = 6;
+                    board[sr][sc] = 0;
+                    board[fr][fc] = 0;
+                    if (is_sah(p))
+                    {
+                        board[sr][sc] = 6;
+                        board[fr][fc] = 4;
+                        board[sr][sc - 2] = 0;
+                        board[sr][sc - 1] = 0;
+                        return 0;
+                    }
+                    p->rocada_mare = 0;
+                    p->rocada_mica = 0;
+                    return 2;
+                }
+                else
+                    return 0;
+            }
+            if (fr == 7 && fc == 7 && p->rocada_mica)
+            {
+                if (tura(fr, fc, sr, sc))
+                {
+                    board[sr][sc + 2] = 4;
+                    board[sr][sc + 1] = 6;
+                    board[sr][sc] = 0;
+                    board[fr][fc] = 0;
+                    if (is_sah(p))
+                    {
+                        board[sr][sc] = 6;
+                        board[fr][fc] = 4;
+                        board[sr][sc + 2] = 0;
+                        board[sr][sc + 1] = 0;
+                        return 0;
+                    }
+                    p->rocada_mare = 0;
+                    p->rocada_mica = 0;
+                    return 2;
+                }
+                else
+                    return 0;
+            }
+        }
+    }
 
+    // daca piesa si culoarea nu au acelasi semn mutarea este invalida
     if ((board[sr][sc] * p->culoare) <= 0)
         return 0;
 
@@ -354,6 +504,22 @@ int meci::sahmat(jucator *p)
     for (int i = 0; i < 8; i++)
         for (int j = 0; j < 8; j++)
         {
+            // verificare de mutat regele
+            if (verifica(p, x_rege, y_rege, i, j))
+            {
+                int aux = board[i][j];
+                board[i][j] = board[x_rege][y_rege];
+                board[x_rege][y_rege] = 0;
+
+                if (!is_sah(p))
+                {
+                    board[x_rege][y_rege] = board[i][j];
+                    board[i][j] = aux;
+                    return 0;
+                }
+                board[x_rege][y_rege] = board[i][j];
+                board[i][j] = aux;
+            }
             // daca piesa este de aceeasi culoare sau este 0
             if (board[i][j] * p->culoare <= 0)
                 continue;
@@ -372,22 +538,6 @@ int meci::sahmat(jucator *p)
                 }
                 board[i][j] = board[x_atac][y_atac];
                 board[x_atac][y_atac] = aux;
-            }
-            // verificare de mutat regele
-            if (verifica(p, x_rege, y_rege, i, j))
-            {
-                int aux = board[i][j];
-                board[i][j] = board[x_rege][y_rege];
-                board[x_rege][y_rege] = 0;
-
-                if (!is_sah(p))
-                {
-                    board[x_rege][y_rege] = board[i][j];
-                    board[i][j] = aux;
-                    return 0;
-                }
-                board[x_rege][y_rege] = board[i][j];
-                board[i][j] = aux;
             }
         }
 
@@ -412,9 +562,9 @@ int meci::sahmat(jucator *p)
                                     board[i][j] = aux;
                                     return 0;
                                 }
-                                board[m][n] = board[i][j];
-                                board[i][j] = aux;
                             }
+                            board[m][n] = board[i][j];
+                            board[i][j] = aux;
                         }
                     }
             }
