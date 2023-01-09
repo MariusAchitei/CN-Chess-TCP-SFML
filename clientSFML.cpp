@@ -49,7 +49,7 @@ clientSFML::clientSFML(int sd, int culoare)
         {
             board_ptr[i * BOARD_SIZE + j].setSize(sf::Vector2f(SQUARE_SIZE, SQUARE_SIZE));
             board_ptr[i * BOARD_SIZE + j].setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);
-            if ((i + j) % 2 == 0)
+            if (((i + j) % 2 == 0 && culoare == 1) || (culoare == -1 && (i + j) % 2 == 1))
                 // {
                 board_ptr[i * BOARD_SIZE + j].setFillColor(sf::Color{192, 192, 192});
             // }
@@ -221,6 +221,9 @@ void clientSFML::citeste_tabla()
         i++;
         n++;
     }
+    // Daca culaorea este negru inversez tabla
+    if (culoare == -1)
+        inverseaza_tabla();
     print_matrix(tabla);
 }
 
@@ -347,13 +350,32 @@ void clientSFML::trimite_mutare()
         printf("Introduceti mutarea:\n");
         move = citeste_mutare();
         printf("Am pimit de la citire ecran {%d}\n", move);
-        buf[0] = move / 1000 + '0';
-        buf[1] = move / 100 % 10 + '0';
-        buf[2] = move / 10 % 10 + '0';
-        buf[3] = move % 10 + '0';
-        buf[4] = '\0';
+        if (culoare == 1)
+        {
+            buf[0] = move / 1000 + '0';
+            buf[1] = move / 100 % 10 + '0';
+            buf[2] = move / 10 % 10 + '0';
+            buf[3] = move % 10 + '0';
+            buf[4] = '\0';
+        }
+        else
+        {
+            // prelucrez mutarea trimisa pentru negru (tabla este inversata)
 
-        printf("am trimis mutarea{%s}\n", buf);
+            buf[0] = BOARD_SIZE - 1 - move / 1000 + '0';
+            buf[1] = BOARD_SIZE - 1 - move / 100 % 10 + '0';
+            buf[2] = BOARD_SIZE - 1 - move / 10 % 10 + '0';
+            buf[3] = BOARD_SIZE - 1 - move % 10 + '0';
+            buf[4] = '\0';
+            int sr = move / 1000, sc = move / 100 % 10, fr = move / 10 % 10, fc = move % 10;
+            move = (BOARD_SIZE - 1 - sr) * 1000;
+            move += (BOARD_SIZE - 1 - sc) * 100;
+            move += (BOARD_SIZE - 1 - fr) * 10;
+            move += BOARD_SIZE - 1 - fc;
+        }
+
+        printf("am trimis mutarea {%s} (string)\n", buf);
+        printf("am trimis mutarea {%d} (int)\n", move);
 
         if (write(sd, &move, sizeof(int)) <= 0)
         {
@@ -418,6 +440,7 @@ int clientSFML::citeste_mutare()
                         selected = y * 10 + x;
                         display();
                         selected = -1;
+
                         move = y * 10 + x;
                         printf("%d  %d\n", x, y);
                     }
@@ -454,4 +477,20 @@ int clientSFML::citeste_mutare()
             }
         }
     }
+}
+
+void clientSFML::inverseaza_tabla()
+{
+    int aux[8][8];
+    for (int i = 0; i < BOARD_SIZE; i++)
+        for (int j = 0; j < BOARD_SIZE; j++)
+        {
+            aux[BOARD_SIZE - 1 - i][BOARD_SIZE - 1 - j] = tabla[i][j];
+        }
+    for (int i = 0; i < BOARD_SIZE; i++)
+        for (int j = 0; j < BOARD_SIZE; j++)
+        {
+            tabla[i][j] = aux[i][j];
+        }
+    // print_matrix(aux);
 }

@@ -57,6 +57,8 @@ private:
     int citeste_mutare();
     void citeste_tabla();
 
+    void inverseaza_tabla();
+
 public:
     clientSFML(int sd, int culoare);
     // ~clientSFML();
