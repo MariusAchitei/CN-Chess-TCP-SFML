@@ -34,6 +34,15 @@ clientSFML::clientSFML(int sd, int culoare)
     mutare_gresita_buf.loadFromFile("sound/mutare_gresita.wav");
     mutare_gresita.setBuffer(mutare_gresita_buf);
 
+    mutare_buf.loadFromFile("sound/mutare.wav");
+    mutare.setBuffer(mutare_buf);
+
+    sah_mat_buf.loadFromFile("sound/sah_mat.wav");
+    sah_mat.setBuffer(sah_mat_buf);
+
+    start_game_buf.loadFromFile("sound/start_game.wav");
+    start_game.setBuffer(start_game_buf);
+
     for (int i = 0; i < BOARD_SIZE; i++)
     {
         for (int j = 0; j < BOARD_SIZE; j++)
@@ -57,6 +66,7 @@ void clientSFML::play()
     citeste_tabla();
     update_textures();
     display();
+    start_game.play();
 
     while (!gata)
     {
@@ -100,7 +110,8 @@ void clientSFML::play()
             break;
         }
     }
-    printf("FDSUINGDFI\n");
+    sah_mat.play();
+    printf("\n");
 }
 
 void clientSFML::citeste_tabla()
@@ -279,9 +290,23 @@ void clientSFML::update_textures()
 void clientSFML::display()
 {
     int move = 0;
+    sf::RectangleShape aux;
+    aux.setFillColor(sf::Color{191, 142, 6});
 
     if (window_ptr->isOpen())
     {
+        sf::Event event;
+        if (window_ptr->pollEvent(event))
+        {
+            switch (event.type)
+            {
+            case sf::Event::Closed:
+                window_ptr->close();
+                break;
+            default:
+                break;
+            }
+        }
 
         window_ptr->clear();
 
@@ -291,7 +316,12 @@ void clientSFML::display()
             for (int j = 0; j < BOARD_SIZE; j++)
             {
                 window_ptr->draw(board_ptr[i * BOARD_SIZE + j]);
-                // window_ptr->draw(piese[i][j]);
+                if (j == selected / 10 && i == selected % 10)
+                {
+                    aux.setSize(board_ptr[i * BOARD_SIZE + j].getSize());
+                    aux.setPosition(board_ptr[i * BOARD_SIZE + j].getPosition());
+                    window_ptr->draw(aux);
+                }
             }
         }
         for (int i = 0; i < BOARD_SIZE; i++)
@@ -313,6 +343,7 @@ void clientSFML::trimite_mutare()
     int ok = 0, bytes, move = 0;
     do
     {
+        display();
         printf("Introduceti mutarea:\n");
         move = citeste_mutare();
         printf("Am pimit de la citire ecran {%d}\n", move);
@@ -321,8 +352,10 @@ void clientSFML::trimite_mutare()
         buf[2] = move / 10 % 10 + '0';
         buf[3] = move % 10 + '0';
         buf[4] = '\0';
+
         printf("am trimis mutarea{%s}\n", buf);
-        if (write(sd, buf, strlen(buf)) <= 0)
+
+        if (write(sd, &move, sizeof(int)) <= 0)
         {
             perror("Eroare la write() spre server.\n");
             // return errno;
@@ -339,6 +372,7 @@ void clientSFML::trimite_mutare()
         }
         else
         {
+            mutare.play();
             printf("mutare efectuata\n");
         }
     } while (ok < 1);
@@ -347,6 +381,7 @@ void clientSFML::trimite_mutare()
 int clientSFML::citeste_mutare()
 {
     int move = 0;
+    selected = -1;
 
     while (window_ptr->isOpen())
     {
@@ -375,21 +410,34 @@ int clientSFML::citeste_mutare()
                         // continue;
                         if (tabla[y][x] * culoare <= 0)
                         {
+                            selected = -1;
+                            display();
                             mutare_gresita.play();
                             continue;
                         }
+                        selected = y * 10 + x;
+                        display();
+                        selected = -1;
                         move = y * 10 + x;
                         printf("%d  %d\n", x, y);
                     }
                     else
                     {
 
+                        int giveup = 0;
                         move *= 100;
                         move += y * 10 + x;
                         printf("%d  %d\n", x, y);
                         printf("Mutarea: {%d}\n", move);
 
                         int sr = move / 1000, sc = move / 100 % 10, fr = move / 10 % 10, fc = move % 10;
+                        if (tabla[sr][sc] * tabla[fr][fc] == 36)
+                        {
+                            printf("\n----\nDaca doriti sa renuntati scrieti 1\n----\n");
+                            scanf("%d", &giveup);
+                            if (giveup == 1)
+                                move = -1;
+                        }
 
                         // piese[fr][fc].setTexture(*(piese[sr][sc].getTexture()));
 

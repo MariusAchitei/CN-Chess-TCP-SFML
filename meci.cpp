@@ -151,7 +151,7 @@ void meci::play()
     while (!gata)
     {
         inreg_mutare(p1);
-        if (sahmat(p2))
+        if (sahmat(p2) || gata)
         {
             gata = 1;
             castigator = p1;
@@ -162,7 +162,7 @@ void meci::play()
         print_board();
 
         inreg_mutare(p2);
-        if (sahmat(p1))
+        if (sahmat(p1) || gata)
         {
             gata = -1;
             castigator = p2;
@@ -176,27 +176,37 @@ void meci::play()
 
 void meci::inreg_mutare(jucator *p)
 {
-    char mutare[5];
+    int mutare;
     int bytes, ok = 0, aux, sah = -1;
     int verif = 0; // voi folosi asta pentru rocada
 
     // loop pentru a inregistra mutari, pana apare cea buna
     do
     {
-        if ((bytes = read(p->fds, mutare, 50)) == -1)
+        if ((bytes = read(p->fds, &mutare, sizeof(int))) == -1)
             perror("Eroare la read() de la client.\n");
-        mutare[4] = '\0';
-        printf("am primit mutarea [%s] de la [%d]\n", mutare, p->culoare);
+        // mutare[4] = '\0';
+        printf("am primit mutarea [%d] de la [%d]\n", mutare, p->culoare);
 
         // transform mutarea din sir de caractere in coordonate
-        int sr = mutare[0] - '0', sc = mutare[1] - '0', fr = mutare[2] - '0', fc = mutare[3] - '0';
+
+        // verific semnalul de renuntare
+        if (mutare == -1)
+        {
+            gata = 1;
+            return;
+        }
+        int sr = mutare / 1000, sc = mutare / 100 % 10, fr = mutare / 10 % 10, fc = mutare % 10;
 
         verif = verifica(p, sr, sc, fr, fc);
         if (!verif || abs(board[fr][fc]) == 6) // tinta sa nu fie rege sau mutare legala
         {
             printf("mutare invalida\n");
             if (write(p->fds, &ok, sizeof(int)) == -1)
+            {
+                printf("EEEEEEEE");
                 perror("Eroare la scris catre client");
+            }
             continue;
         }
         // rocada returneaza 2
@@ -328,8 +338,8 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
             {
                 if (tura(fr, fc, sr, sc))
                 {
-                    board[sr][sc - 2] = -4;
-                    board[sr][sc - 1] = -6;
+                    board[sr][sc - 2] = -6;
+                    board[sr][sc - 1] = -4;
                     board[sr][sc] = 0;
                     board[fr][fc] = 0;
                     if (is_sah(p))
@@ -350,8 +360,8 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
             if (fr == 0 && fc == 7 && p->rocada_mica)
                 if (tura(fr, fc, sr, sc))
                 {
-                    board[sr][sc + 2] = -4;
-                    board[sr][sc + 1] = -6;
+                    board[sr][sc + 2] = -6;
+                    board[sr][sc + 1] = -4;
                     board[sr][sc] = 0;
                     board[fr][fc] = 0;
                     if (is_sah(p))
@@ -375,8 +385,8 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
             {
                 if (tura(fr, fc, sr, sc))
                 {
-                    board[sr][sc - 2] = 4;
-                    board[sr][sc - 1] = 6;
+                    board[sr][sc - 2] = 6;
+                    board[sr][sc - 1] = 4;
                     board[sr][sc] = 0;
                     board[fr][fc] = 0;
                     if (is_sah(p))
@@ -398,8 +408,8 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
             {
                 if (tura(fr, fc, sr, sc))
                 {
-                    board[sr][sc + 2] = 4;
-                    board[sr][sc + 1] = 6;
+                    board[sr][sc + 2] = 6;
+                    board[sr][sc + 1] = 4;
                     board[sr][sc] = 0;
                     board[fr][fc] = 0;
                     if (is_sah(p))

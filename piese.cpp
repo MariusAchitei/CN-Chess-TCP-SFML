@@ -9,13 +9,11 @@ int meci::pion(int sr, int sc, int fr, int fc)
         return 0;
     if (abs(sr - fr) == 2)
     {
-        if (!(culoare < 0 && sr == 1 || culoare > 0 && sr == 6) || board[fr][fc] != 0) // mutare de 2 patrate la inceput
-            return 0;
-        if (culoare > 0 && board[sr - 1][sc] != 0) // mutare de 2 piese cu obstacol
-            return 0;
-        if (culoare < 0 && board[sr + 1][sc] != 0) // mutare de 2 piese cu obstacol
-            return 0;
-        return 1;
+        if (culoare < 0 && sr == 1 || culoare > 0 && sr == 6)
+            if (board[fr][fc] == 0)
+                if (sc == fc)
+                    return 1;
+        return 0;
     }
     if (abs(sr - fr) == 1)
     {

@@ -21,6 +21,7 @@ private:
     int tabla[8][8];
     int sd;
     int gata = 0;
+    int selected = -1;
 
     sf::RenderWindow *window_ptr;
 
@@ -43,6 +44,15 @@ private:
 
     sf::SoundBuffer mutare_gresita_buf;
     sf::Sound mutare_gresita;
+
+    sf::SoundBuffer mutare_buf;
+    sf::Sound mutare;
+
+    sf::SoundBuffer start_game_buf;
+    sf::Sound start_game;
+
+    sf::SoundBuffer sah_mat_buf;
+    sf::Sound sah_mat;
 
     int citeste_mutare();
     void citeste_tabla();
