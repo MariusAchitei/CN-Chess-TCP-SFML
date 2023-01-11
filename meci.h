@@ -38,6 +38,8 @@ private:
     int sahmat(jucator *p);
     void get_rege(int culoare, int *x, int *y);
 
+    int rocada(jucator *p, int sr, int sc, int fr, int fc);
+
 public:
     meci();
     meci(jucator *p1, jucator *p2);

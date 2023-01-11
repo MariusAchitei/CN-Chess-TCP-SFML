@@ -2,18 +2,6 @@
 
 #include "piese.cpp"
 
-meci::meci()
-{
-    printf("\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAAAAAAAA\n");
-}
-
-meci::meci(jucator *p1, jucator *p2)
-{
-    this->p1 = p1;
-    this->p2 = p2;
-    // init_board(START_POSITION);
-}
-
 meci::meci(jucator *p1, jucator *p2, char *fenn)
 {
     this->p1 = p1;
@@ -28,6 +16,7 @@ meci::meci(jucator *p1, jucator *p2, char *fenn)
     int i = 0;
     int m = 0, n = 0;
 
+    // initializez tabla de joc din notatie fen
     while (fenn[i] != ' ')
     {
         switch (fenn[i])
@@ -116,6 +105,7 @@ meci::meci(jucator *p1, jucator *p2, char *fenn)
     }
 }
 
+// trimite catre jucatori semnalul de incepere, culoarea, numele adversarului
 void meci::init()
 {
     int alb = 1, negru = -1;
@@ -137,11 +127,6 @@ void meci::init()
     if (write(p2->fds, p1->nume, 50) == -1)
         perror("Eroare la scris catre client");
 
-    // if (write(p1->fds, START_POSITION, strlen(START_POSITION)) == -1)
-    //     perror("Eroare la scris catre client");
-    // if (write(p2->fds, START_POSITION, strlen(START_POSITION)) == -1)
-    //     perror("Eroare la scris catre client");
-
     send_board();
 }
 
@@ -153,7 +138,8 @@ void meci::play()
         inreg_mutare(p1);
         if (sahmat(p2) || gata)
         {
-            gata = 1;
+            if (gata != -1)
+                gata = 1;
             castigator = p1;
             break;
         }
@@ -164,7 +150,8 @@ void meci::play()
         inreg_mutare(p2);
         if (sahmat(p1) || gata)
         {
-            gata = -1;
+            if (gata != 1)
+                gata = -1;
             castigator = p2;
             break;
         }
@@ -193,9 +180,14 @@ void meci::inreg_mutare(jucator *p)
         // verific semnalul de renuntare
         if (mutare == -1)
         {
-            gata = 1;
+            ok = 1;
+            gata = p->oponent->culoare;
+            if (write(p->fds, &ok, sizeof(int)) == -1)
+                perror("Eroare la scris catre client");
+
             return;
         }
+        // transform mutarea in coordonate
         int sr = mutare / 1000, sc = mutare / 100 % 10, fr = mutare / 10 % 10, fc = mutare % 10;
 
         verif = verifica(p, sr, sc, fr, fc);
@@ -219,9 +211,12 @@ void meci::inreg_mutare(jucator *p)
             break;
         }
 
+        // daca mutarea a fost buna, o efectuam
         aux = board[fr][fc];
         board[fr][fc] = board[sr][sc];
         board[sr][sc] = 0;
+
+        // verificam daca jucatorul care muta nu va fi in sah
         if (is_sah(p))
         {
             board[sr][sc] = board[fr][fc];
@@ -248,6 +243,7 @@ void meci::inreg_mutare(jucator *p)
             p->rocada_mare = 0;
             p->rocada_mica = 0;
         }
+        // daca tura a fost mutata nu se mai poate face rocada pe parte ei
         if (p->culoare == -1 && board[fr][fc] == -4)
         {
             if (sr == 0 && sc == 0)
@@ -272,11 +268,14 @@ void meci::inreg_mutare(jucator *p)
     } while (!ok);
 }
 
+// transforma tabla in format fen si o trimite jucatorilor
+// trimite semnalul de incheiere a jocului
 void meci::send_board()
 {
     char fenn[100], aux;
     int k = 0, empty_s = 0;
 
+    // construesc sirul fen
     for (int i = 0; i < 8; i++)
     {
         for (int j = 0; j < 8; j++)
@@ -312,11 +311,13 @@ void meci::send_board()
         fenn[k] = 'b';
     fenn[k + 1] = '\0';
 
+    // semnalul de terminare
     if (write(p2->fds, &gata, sizeof(int)) == -1)
         perror("Eroare la scris catre client");
     if (write(p1->fds, &gata, sizeof(int)) == -1)
         perror("Eroare la scris catre client");
 
+    // tabla de joc
     if (write(p2->fds, fenn, strlen(fenn)) == -1)
         perror("Eroare la scris catre client");
     if (write(p1->fds, fenn, strlen(fenn)) == -1)
@@ -330,104 +331,7 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
     // verific daca facem rocada
     if (abs(board[sr][sc] + board[fr][fc]) == 10)
     {
-        if (is_sah(p))
-            return 0;
-        if (p->culoare == -1)
-        {
-            if (fr == 0 && fc == 0 && p->rocada_mare)
-            {
-                if (tura(fr, fc, sr, sc))
-                {
-                    board[sr][sc - 2] = -6;
-                    board[sr][sc - 1] = -4;
-                    board[sr][sc] = 0;
-                    board[fr][fc] = 0;
-                    if (is_sah(p))
-                    {
-                        board[sr][sc] = -6;
-                        board[fr][fc] = -4;
-                        board[sr][sc - 2] = 0;
-                        board[sr][sc - 1] = 0;
-                        return 0;
-                    }
-                    p->rocada_mare = 0;
-                    p->rocada_mica = 0;
-                    return 2;
-                }
-                else
-                    return 0;
-            }
-            if (fr == 0 && fc == 7 && p->rocada_mica)
-                if (tura(fr, fc, sr, sc))
-                {
-                    board[sr][sc + 2] = -6;
-                    board[sr][sc + 1] = -4;
-                    board[sr][sc] = 0;
-                    board[fr][fc] = 0;
-                    if (is_sah(p))
-                    {
-                        board[sr][sc] = -6;
-                        board[fr][fc] = -4;
-                        board[sr][sc + 2] = 0;
-                        board[sr][sc + 1] = 0;
-                        return 0;
-                    }
-                    p->rocada_mare = 0;
-                    p->rocada_mica = 0;
-                    return 2;
-                }
-                else
-                    return 0;
-        }
-        if (p->culoare == 1)
-        {
-            if (fr == 7 && fc == 0 && p->rocada_mare)
-            {
-                if (tura(fr, fc, sr, sc))
-                {
-                    board[sr][sc - 2] = 6;
-                    board[sr][sc - 1] = 4;
-                    board[sr][sc] = 0;
-                    board[fr][fc] = 0;
-                    if (is_sah(p))
-                    {
-                        board[sr][sc] = 6;
-                        board[fr][fc] = 4;
-                        board[sr][sc - 2] = 0;
-                        board[sr][sc - 1] = 0;
-                        return 0;
-                    }
-                    p->rocada_mare = 0;
-                    p->rocada_mica = 0;
-                    return 2;
-                }
-                else
-                    return 0;
-            }
-            if (fr == 7 && fc == 7 && p->rocada_mica)
-            {
-                if (tura(fr, fc, sr, sc))
-                {
-                    board[sr][sc + 2] = 6;
-                    board[sr][sc + 1] = 4;
-                    board[sr][sc] = 0;
-                    board[fr][fc] = 0;
-                    if (is_sah(p))
-                    {
-                        board[sr][sc] = 6;
-                        board[fr][fc] = 4;
-                        board[sr][sc + 2] = 0;
-                        board[sr][sc + 1] = 0;
-                        return 0;
-                    }
-                    p->rocada_mare = 0;
-                    p->rocada_mica = 0;
-                    return 2;
-                }
-                else
-                    return 0;
-            }
-        }
+        return rocada(p, sr, sc, fr, fc);
     }
 
     // daca piesa si culoarea nu au acelasi semn mutarea este invalida
@@ -442,6 +346,7 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
     if (fr > 7 || fr < 0 || fc > 7 || fc < 0)
         return 0;
 
+    // verifica daca destinatia nu e aceeasi cu startul
     if (sr == fr && sc == fc)
         return 0;
 
@@ -483,6 +388,108 @@ int meci::verifica(jucator *p, int sr, int sc, int fr, int fc)
     return 1;
 }
 
+int meci::rocada(jucator *p, int sr, int sc, int fr, int fc)
+{
+    if (is_sah(p))
+        return 0;
+    if (p->culoare == -1)
+    {
+        if (fr == 0 && fc == 0 && p->rocada_mare)
+        {
+            if (tura(fr, fc, sr, sc))
+            {
+                board[sr][sc - 2] = -6;
+                board[sr][sc - 1] = -4;
+                board[sr][sc] = 0;
+                board[fr][fc] = 0;
+                if (is_sah(p))
+                {
+                    board[sr][sc] = -6;
+                    board[fr][fc] = -4;
+                    board[sr][sc - 2] = 0;
+                    board[sr][sc - 1] = 0;
+                    return 0;
+                }
+                p->rocada_mare = 0;
+                p->rocada_mica = 0;
+                return 2;
+            }
+            else
+                return 0;
+        }
+        if (fr == 0 && fc == 7 && p->rocada_mica)
+            if (tura(fr, fc, sr, sc))
+            {
+                board[sr][sc + 2] = -6;
+                board[sr][sc + 1] = -4;
+                board[sr][sc] = 0;
+                board[fr][fc] = 0;
+                if (is_sah(p))
+                {
+                    board[sr][sc] = -6;
+                    board[fr][fc] = -4;
+                    board[sr][sc + 2] = 0;
+                    board[sr][sc + 1] = 0;
+                    return 0;
+                }
+                p->rocada_mare = 0;
+                p->rocada_mica = 0;
+                return 2;
+            }
+            else
+                return 0;
+    }
+    if (p->culoare == 1)
+    {
+        if (fr == 7 && fc == 0 && p->rocada_mare)
+        {
+            if (tura(fr, fc, sr, sc))
+            {
+                board[sr][sc - 2] = 6;
+                board[sr][sc - 1] = 4;
+                board[sr][sc] = 0;
+                board[fr][fc] = 0;
+                if (is_sah(p))
+                {
+                    board[sr][sc] = 6;
+                    board[fr][fc] = 4;
+                    board[sr][sc - 2] = 0;
+                    board[sr][sc - 1] = 0;
+                    return 0;
+                }
+                p->rocada_mare = 0;
+                p->rocada_mica = 0;
+                return 2;
+            }
+            else
+                return 0;
+        }
+        if (fr == 7 && fc == 7 && p->rocada_mica)
+        {
+            if (tura(fr, fc, sr, sc))
+            {
+                board[sr][sc + 2] = 6;
+                board[sr][sc + 1] = 4;
+                board[sr][sc] = 0;
+                board[fr][fc] = 0;
+                if (is_sah(p))
+                {
+                    board[sr][sc] = 6;
+                    board[fr][fc] = 4;
+                    board[sr][sc + 2] = 0;
+                    board[sr][sc + 1] = 0;
+                    return 0;
+                }
+                p->rocada_mare = 0;
+                p->rocada_mica = 0;
+                return 2;
+            }
+            else
+                return 0;
+        }
+    }
+}
+
 int meci::is_sah(jucator *p)
 {
     int x_rege, y_rege;
@@ -506,6 +513,7 @@ int meci::sahmat(jucator *p)
     if (!is_sah(p))
         return 0;
 
+    // variabila sah a fost initializata la ultimul apel al functiei isSah
     int x_atac = sah / 10, y_atac = sah % 10;
     int x_rege, y_rege;
     get_rege(p->culoare, &x_rege, &y_rege);
@@ -603,5 +611,9 @@ void meci::final()
 {
     send_board();
     print_board();
+    memset(p1, 0, sizeof(p1));
+    memset(p2, 0, sizeof(p2));
+    p1->ready = -1;
+    p2->ready = -1;
 }
 // meci::~meci()

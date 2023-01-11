@@ -13,16 +13,11 @@
 
 /* codul de eroare returnat de anumite apeluri */
 
-// typedef struct thData
-// {
-//     int idThread; // id-ul thread-ului tinut in evidenta de acest program
-//     int cl;       // descriptorul intors de accept
-// } thData;
-
-jucator juc[12];
+jucator juc[16];
 
 void *creeaza_joc(void *arg)
 {
+    // dereferentiez indecsii primiti. al doilea element va avea adresa mai mare cu 4
     int p1 = *(int *)arg, p2 = *(int *)(arg + 4);
 
     meci m(&juc[p1], &juc[p2], START_POSITION);
@@ -88,7 +83,7 @@ int main()
 
     int cur_client = 0;
 
-    pthread_t th[12];
+    pthread_t th[16];
 
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
@@ -128,16 +123,21 @@ int main()
     fflush(stdout);
     while (1)
     {
+        // copie temporara la setul curent
         bcopy((char *)&actfds, (char *)&readfds, sizeof(readfds));
 
+        // trimitem copia de citire spre select si ne va lasa cu descriptorul sd, de unde putem citi
         if (select(nfds + 1, &readfds, NULL, NULL, &tv) < 0)
         {
             perror("[server] Eroare la select().\n");
             return errno;
         }
 
+        // daca select a setat sd, in readfds, inseamna a cvem o conecsiune
         if (FD_ISSET(sd, &readfds))
         {
+            // avem conecsiune asa ca initializam sockaddr_in from
+
             len = sizeof(from);
             bzero(&from, sizeof(from));
 
@@ -152,37 +152,43 @@ int main()
             // if (nfds < client)
             //     nfds = client;
 
+            // adaug socketul client la setul de descriptori
             FD_SET(client, &actfds);
             printf("[server] S-a conectat clientul cu descriptorul %d, de la adresa %s.\n", client, conv_addr(from));
             fflush(stdout);
+
+            // pentru aceasta noua conecsiune initializez una din structurile jucator
 
             juc[cur_client].thr = &th[cur_client];
             juc[cur_client].fds = client;
             juc[cur_client].ready = 0;
             printf("%d\n", cur_client);
 
-            int *p_index_jucator = (int *)malloc(sizeof(int));
+            int *p_index_jucator = new int;
             *p_index_jucator = cur_client;
+
             pthread_create(&th[cur_client], NULL, *inreg_nume, p_index_jucator);
             cur_client++;
         }
-        int i_p1 = -1;
+        int i_p1 = -1; // index player 1
         for (int i = 0; i <= cur_client; i++)
         {
-            if (juc[i].ready == 1 && i_p1 <= -1)
+            if (juc[i].ready == 1 && i_p1 <= -1) // daca am gasit un jucator ready il initializez ca player 1
             {
                 i_p1 = i;
                 continue;
             }
-            if (i_p1 >= -1 && juc[i].ready == 1)
+            if (i_p1 >= -1 && juc[i].ready == 1) // gasim adversarul
             {
                 int i_p2 = i;
                 juc[i_p1].ready = 0;
                 juc[i_p2].ready = 0;
 
+                // ma asigur ca thredurile individuale si au terminat executia
                 pthread_join(*juc[i_p1].thr, NULL);
                 pthread_join(*juc[i_p2].thr, NULL);
 
+                // vector de 2 pentru a timite indecsii jucatorilor catre thread
                 int i_meci[2];
                 i_meci[0] = i_p1;
                 i_meci[1] = i;

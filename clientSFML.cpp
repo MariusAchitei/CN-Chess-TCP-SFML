@@ -76,7 +76,7 @@ void clientSFML::play()
         citeste_tabla();
         update_textures();
         display();
-        if (gata)
+        if (gata != 0)
         {
             printf("----------------\nJOCUL S A INCHEIAT\n");
             if (gata == culoare)
@@ -95,7 +95,7 @@ void clientSFML::play()
         citeste_tabla();
         update_textures();
         display();
-        if (gata)
+        if (gata != 0)
         {
             printf("----------------\nJOCUL S A INCHEIAT\n");
             if (gata == culoare)
@@ -112,6 +112,9 @@ void clientSFML::play()
     }
     sah_mat.play();
     printf("\n");
+    int orice;
+    printf("---\nIntroduceti orice pentru a inchide\n---\n");
+    scanf("%d", &orice);
 }
 
 void clientSFML::citeste_tabla()
@@ -124,6 +127,8 @@ void clientSFML::citeste_tabla()
         perror("Eroare la read() de la server.\n");
         // return errno;
     }
+
+    printf("Semnalul gata este [%d]\n", gata);
 
     if ((bytes = read(sd, fen, 150)) < 0) // primim tabla de joc
     {

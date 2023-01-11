@@ -8,11 +8,8 @@
 
 int board[8][8];
 
-/* codul de eroare returnat de anumite apeluri */
-// extern int errno;
-
 /* portul de conectare la server*/
-int port;
+// int port;
 
 void trimite_nume(int sd)
 {
@@ -30,6 +27,7 @@ void trimite_nume(int sd)
   printf("--\nSe cauta oponent..\n--\n");
 }
 
+// citesc semnalul de inceput, culoarea, numele adversarului
 void init_meci(int sd, int *culoare)
 {
   int nr, bytes;
@@ -63,16 +61,6 @@ int main(int argc, char *argv[])
 
   int bytes;
 
-  /* exista toate argumentele in linia de comanda? */
-  // if (argc != 3)
-  // {
-  //   printf("Sintaxa: %s <adresa_server> <port>\n", argv[0]);
-  //   return -1;
-  // }
-
-  /* stabilim portul */
-  port = atoi(argv[2]);
-
   /* cream socketul */
   if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
   {
@@ -86,7 +74,7 @@ int main(int argc, char *argv[])
   /* adresa IP a serverului */
   server.sin_addr.s_addr = inet_addr(ip);
   /* portul de conectare */
-  server.sin_port = htons(2908);
+  server.sin_port = htons(PORT);
 
   /* ne conectam la server */
   if (connect(sd, (struct sockaddr *)&server, sizeof(struct sockaddr)) == -1)
@@ -100,13 +88,10 @@ int main(int argc, char *argv[])
 
   trimite_nume(sd);
 
-  /* citirea raspunsului dat de server
-     (apel blocant pana cand serverul raspunde) */
-
-  // citim semnalul de pornire, citim numele adversarului, afisez tabela
   int culoare, gata = 0;
 
   init_meci(sd, &culoare);
+
   if (culoare == 1)
     printf("Veti juca cu piesele albe, aveti prima mutare\n");
   else
@@ -117,7 +102,7 @@ int main(int argc, char *argv[])
 
   /* afisam mesajul primit */
 
-  printf("Mesajul primit este: %d\n", nr);
+  // printf("Mesajul primit este: %d\n", nr);
 
   /* inchidem conexiunea, am terminat */
   close(sd);
